@@ -26,17 +26,13 @@ from tensortrade.features import FeaturePipeline
 TypeString = Union[type, str]
 
 
-class InstrumentExchange(Component):
-    """An abstract instrument exchange for use within a trading environments.
+class Exchange(Component):
+    """An abstract exchange for use within a trading environments.
 
-    Parameters
-    ----------
-    base_instrument : str
-        The exchange symbol of the instrument to store/measure value in.
-    dtype : `TypeString`
-        A type or str corresponding to the dtype of the `observation_space`.
-    feature_pipeline : `FeaturePipeline`
-        A pipeline of feature transformations for transforming observations.
+    Arguments:
+        base_instrument: The exchange symbol of the instrument to store/measure value in.
+        dtype: A type or str corresponding to the dtype of the `observation_space`.
+        feature_pipeline: A pipeline of feature transformations for transforming observations.
     """
     registered_name = "exchanges"
 
@@ -144,7 +140,7 @@ class InstrumentExchange(Component):
     def net_worth(self) -> float:
         """Calculate the net worth of the active account on the exchange.
 
-        Returns
+        Returns:
             The total portfolio value of the active account on the exchange.
         """
         net_worth = self.balance

@@ -17,32 +17,30 @@ import numpy as np
 from typing import Union, List
 from gym.spaces import Discrete
 
-from tensortrade.actions import ActionStrategy, TradeActionUnion, DTypeString
+from tensortrade.actions import ActionScheme, TradeActionUnion, DTypeString
 from tensortrade.trades import Trade, TradeType
 
 
-class MultiDiscreteActionStrategy(ActionStrategy):
-    """Discrete strategy, which calculates the trade amount as a fraction of
+class MultiDiscreteActions(ActionScheme):
+    """Discrete action scheme, which calculates the trade amount as a fraction of
     the total balance for each instrument provided.
 
-    Parameters
-    ----------
-    actions_per_instrument : int
-        The number of bins to divide the total balance by.
-        Defaults to 20 (i.e. 1/20, 2/20, ..., 20/20).
-    max_allowed_slippage_percent : float
-        The maximum amount above the current price the strategy will pay for
-        an instrument.
-        Defaults to 1.0 (i.e. 1%).
+    Arguments:
+        n_actions: The number of bins to divide the total balance by.
+            Defaults to 20 (i.e. 1/20, 2/20, ..., 20/20).
+        instrument: A `str` designating the instrument to be traded.
+            Defaults to 'BTC'.
+        max_allowed_slippage_percent: The maximum amount above the current price the scheme will pay for an instrument.
+            Defaults to 1.0 (i.e. 1%).
     """
 
     def __init__(self, actions_per_instrument: int = 20, max_allowed_slippage_percent: float = 1.0):
         super().__init__(
-            action_space=Discrete(len(self.context.products) * actions_per_instrument),
+            action_space=Discrete(len(self.context.instruments) * actions_per_instrument),
             dtype=np.int64
         )
 
-        self._products = self.context.products
+        self._instruments = self.context.instruments
 
         self._actions_per_instrument = \
             self.context.get('actions_per_instrument', None) or \
@@ -60,7 +58,7 @@ class MultiDiscreteActionStrategy(ActionStrategy):
     @dtype.setter
     def dtype(self, dtype: DTypeString):
         raise ValueError(
-            'Cannot change the dtype of a `SimpleDiscreteStrategy` due to '
+            'Cannot change the dtype of `MultiDiscreteActions` due to '
             'the requirements of `gym.spaces.Discrete` spaces. ')
 
     def get_trade(self, action: TradeActionUnion) -> Trade:
@@ -76,20 +74,20 @@ class MultiDiscreteActionStrategy(ActionStrategy):
             7 = MARKET_BUY|0.5
             etc.
         """
-        product_idx = int(action / self._actions_per_instrument)
-        product = self._products[product_idx]
+        instrument_idx = int(action / self._actions_per_instrument)
+        instrument = self._instruments[instrument_idx]
 
         n_splits = int(self._actions_per_instrument / len(TradeType))
         trade_type = TradeType(action % len(TradeType))
         trade_amount = int(action / len(TradeType)) * \
             float(1 / n_splits) + (1 / n_splits)
-        trade_amount = trade_amount - product_idx
+        trade_amount = trade_amount - instrument_idx
 
-        current_price = self._exchange.current_price(symbol=product)
+        current_price = self._exchange.current_price(symbol=instrument)
         base_precision = self._exchange.base_precision
         instrument_precision = self._exchange.instrument_precision
 
-        amount = self._exchange.instrument_balance(product)
+        amount = self._exchange.instrument_balance(instrument)
         price = current_price
 
         if trade_type is TradeType.MARKET_BUY or trade_type is TradeType.LIMIT_BUY:
@@ -101,7 +99,7 @@ class MultiDiscreteActionStrategy(ActionStrategy):
         elif trade_type is TradeType.MARKET_SELL or trade_type is TradeType.LIMIT_SELL:
             price_adjustment = 1 - (self._max_allowed_slippage_percent / 100)
             price = round(current_price * price_adjustment, base_precision)
-            amount_held = self._exchange.portfolio.get(product, 0)
+            amount_held = self._exchange.portfolio.get(instrument, 0)
             amount = round(amount_held * trade_amount, instrument_precision)
 
-        return Trade(product, trade_type, amount, price)
+        return Trade(instrument, trade_type, amount, price)
