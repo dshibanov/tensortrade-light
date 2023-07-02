@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "tensortrade"
-version = "0.1.0"
+name = "tensortrade-light"
+version = "1.0.1"
 description = "tensortrade fork, fixes gym to gymnasium switch compatibility issues"
 authors = ["Dmitrii 108 <dmitry.shibanov@gmail.com>"]
 readme = "README.md"
@@ -13,7 +13,7 @@ pandas = ">=0.25.0"
 gym = ">=0.25.2"
 pyyaml = ">=5.1.2"
 stochastic = ">=0.6.0"
-tensorflow = ">=2.7.0"
+# tensorflow = ">=2.7.0"
 ipython = ">=7.12.0"
 matplotlib = ">=3.1.1"
 plotly = ">=4.5.0"
@@ -25,31 +25,13 @@ gymnasium = "^0.28.1"
 ray = "^2.5.1"
 tabulate = "^0.9.0"
 dm-tree = "^0.1.8"
-scikit-image = "^0.21.0"
+# scikit-image = "^0.21.0"
 lz4 = "^4.3.2"
 tensorflow-probability = "^0.20.1"
-torch = "^2.0.1+cpu"
 
-
-[[tool.poetry.source]]
-name = "torch"
-url = "https://download.pytorch.org/whl/cpu"
-default = false
-secondary = false
-
-
-[[tool.poetry.source]]
-name = "torchvision"
-url = "https://download.pytorch.org/whl/cpu"
-default = false
-secondary = false
-
-
-[[tool.poetry.source]]
-name = "torchaudio"
-url = "https://download.pytorch.org/whl/cpu"
-default = false
-secondary = false
+[tool.poe.tasks]
+install-torch = "pip install torch==2.0.1+cpu -f https://download.pytorch.org/whl/torch_stable.html"
+pip-list = "pip list"
 
 [build-system]
 requires = ["poetry-core"]
