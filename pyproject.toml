@@ -2,8 +2,9 @@
 name = "tensortrade-light"
 version = "1.0.1"
 description = "tensortrade fork, fixes gym to gymnasium switch compatibility issues"
-authors = ["Dmitrii 108 <dmitry.shibanov@gmail.com>"]
+authors = ["Dmitrii Shibanov <dmitry.shibanov@gmail.com>"]
 readme = "README.md"
+packages = [{include = "tensortrade-light"}]
 
 [tool.poetry.dependencies]
 python = "3.10.1"
