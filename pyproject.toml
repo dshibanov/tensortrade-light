@@ -32,7 +32,7 @@ tensorflow-probability = "^0.20.1"
 # tensorflow = "^2.12.0"
 
 [tool.poe.tasks]
-install-torch = "pip install torch==2.0.1+cpu -f https://download.pytorch.org/whl/torch_stable.html"
+install-torch = "pip install torch==2.0.1+cpu torchvision torchaudio -f https://download.pytorch.org/whl/torch_stable.html"
 # install-scikit-image = "python -m pip install -U scikit-image"
 pip-list = "pip list"
 
