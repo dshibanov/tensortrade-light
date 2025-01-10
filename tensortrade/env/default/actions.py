@@ -172,6 +172,71 @@ class BSH(TensorTradeActionScheme):
         super().reset()
         self.action = 0
 
+class MultySymbolBSH(TensorTradeActionScheme):
+    """BSH for multiple symbols environments.
+
+    Parameters
+    ----------
+    cash : `Wallet`
+        The wallet to hold funds in the base intrument.
+    asset : `Wallet`
+        The wallet to hold funds in the quote instrument.
+    """
+
+    registered_name = "multy_symbol_bsh"
+
+    # def __init__(self, cash: 'Wallet', asset: 'Wallet'):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.listeners = []
+        self.action = 1
+        self.started = False
+
+
+    @property
+    def action_space(self):
+        return Discrete(2)
+
+    def attach(self, listener):
+        self.listeners += [listener]
+        return self
+
+    def get_orders(self, action: int, portfolio: 'Portfolio') -> 'Order':
+        order = None
+        current_symbol_code = self.config["current_symbol_code"]
+        cash = portfolio.wallets[0]
+        asset = portfolio.wallets[current_symbol_code+1]
+        if ((self.started == False) or (abs(action - self.action) > 0)):
+            self.started = True
+            src = cash if action == 0 else asset
+            tgt = asset if action == 0 else cash
+            if src.balance == 0:  # We need to check, regardless of the proposed order, if we have balance in 'src'
+                return []  # Otherwise just return an empty order list
+            order = proportion_order(portfolio, src, tgt, 1.0)
+            self.action = action
+
+        for listener in self.listeners:
+            listener.on_action(action)
+
+        return [order]
+
+    def force_sell(self):
+        # *forced by episode ending
+        action = 1
+        orders = self.get_orders(action, self.portfolio)
+
+        for order in orders:
+            if order:
+                logging.info('Step {}: {} {}'.format(order.step, order.side, order.quantity))
+                self.broker.submit(order)
+
+        self.broker.update()
+
+    def reset(self):
+        super().reset()
+        self.action = 1
+        self.started = False
 
 class SimpleOrders(TensorTradeActionScheme):
     """A discrete action scheme that determines actions based on a list of
@@ -362,12 +427,15 @@ class ManagedRiskOrders(TensorTradeActionScheme):
         if action == 0:
             return []
 
-        (ep, (stop, take, proportion, duration, side)) = self.actions[action]
-
+        (exchange_pair, (stop, take, proportion, duration, side)) = self.actions[action]
+        print(exchange_pair)
+        print(type(exchange_pair))
+        print('ep, (stop, take, proportion, duration, side) :: ', exchange_pair, stop, take, proportion, duration, side)
+        # ep, (stop, take, proportion, duration, side) ::  my_exchange:USDT/ASSET 0.02 0.01 0.1 None sell
         side = TradeSide(side)
 
-        instrument = side.instrument(ep.pair)
-        wallet = portfolio.get_wallet(ep.exchange.id, instrument=instrument)
+        instrument = side.instrument(exchange_pair.pair)
+        wallet = portfolio.get_wallet(exchange_pair.exchange.id, instrument=instrument)
 
         balance = wallet.balance.as_float()
         size = (balance * proportion)
@@ -381,8 +449,8 @@ class ManagedRiskOrders(TensorTradeActionScheme):
 
         params = {
             'side': side,
-            'exchange_pair': ep,
-            'price': ep.price,
+            'exchange_pair': exchange_pair,
+            'price': exchange_pair.price,
             'quantity': quantity,
             'down_percent': stop,
             'up_percent': take,

@@ -15,12 +15,13 @@
 import uuid
 import logging
 
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, TypeVar
 from random import randint
 
 # import gym
 import gymnasium as gym
 import numpy as np
+import pandas as pd
 
 from tensortrade.core import TimeIndexed, Clock, Component
 from tensortrade.env.generic import (
@@ -31,7 +32,10 @@ from tensortrade.env.generic import (
     Informer,
     Renderer
 )
+ObsType = TypeVar("ObsType")
 
+# TODO: put all MultySymbolTradingEnv functionality to TradingEnv
+#       with different logics depend on flag "multy_symbol_env"
 
 class TradingEnv(gym.Env, TimeIndexed):
     """A trading environment made for use with Gym-compatible reinforcement
@@ -72,6 +76,7 @@ class TradingEnv(gym.Env, TimeIndexed):
                  **kwargs) -> None:
         super().__init__()
         self.clock = Clock()
+        self.config = kwargs["config"]
 
         self.action_scheme = action_scheme
         self.reward_scheme = reward_scheme
@@ -133,18 +138,31 @@ class TradingEnv(gym.Env, TimeIndexed):
         dict
             The information gathered after completing the step.
         """
-        self.action_scheme.perform(self, action)
+
+        last_row_0 = self.observer.history.rows[next(reversed(self.observer.history.rows))]
+        if self.config.get('multy_symbol_env', False) == True:
+            self.update_params()
+            if "use_force_sell" in self.config and self.config["use_force_sell"] == True and self.observer.end_of_episode == True:
+                self.action_scheme.force_sell()
+            else:
+                self.action_scheme.perform(self, action)
 
         obs = self.observer.observe(self)
+        self.update_params()
+
+
         reward = self.reward_scheme.reward(self)
         done = self.stopper.stop(self)
         info = self.informer.info(self)
-
         self.clock.increment()
-
         return obs, reward, done, info
 
-    def reset(self) -> 'np.array':
+
+    def reset(self,
+        *,
+        seed: int | None = None,
+        options: dict[str, Any] | None = None,
+    ) -> tuple[ObsType, dict[str, Any]]:  # type: ignore
         """Resets the environment.
 
         Returns
@@ -152,6 +170,12 @@ class TradingEnv(gym.Env, TimeIndexed):
         obs : `np.array`
             The first observation of the environment.
         """
+
+
+        # Initialize the RNG if the seed is manually passed
+        if seed is not None:
+            self._np_random, seed = seeding.np_random(seed)
+
         if self.random_start_pct > 0.00:
             size = len(self.observer.feed.process[-1].inputs[0].iterable)
             random_start = randint(0, int(size * self.random_start_pct))
@@ -169,10 +193,18 @@ class TradingEnv(gym.Env, TimeIndexed):
                     c.reset()
 
         obs = self.observer.observe(self)
+        last_row = self.observer.history.rows [next(reversed(self.observer.history.rows))]
+        if self.config.get('multy_symbol_env', False) == True:
+            self.end_of_episode = self.observer.end_of_episode
 
         self.clock.increment()
 
         return obs
+
+    # old gymnasium api method
+    # we need it here for stable_baseline3 check_env testing
+    def seed(self, seed = None):
+        pass
 
     def render(self, **kwargs) -> None:
         """Renders the environment."""
@@ -185,3 +217,10 @@ class TradingEnv(gym.Env, TimeIndexed):
     def close(self) -> None:
         """Closes the environment."""
         self.renderer.close()
+
+    def update_params(self):
+        if self.config.get('multy_symbol_env', False) == True:
+            last_row_0 = self.observer.history.rows[next(reversed(self.observer.history.rows))]
+            self.end_of_episode = self.observer.end_of_episode #last_row_0["end_of_episode"]
+            # FIXME: get current_symbol_code somewhere??
+            self.config["current_symbol_code"] = self.observer.symbol_code
