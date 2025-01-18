@@ -1052,14 +1052,14 @@ if __name__ == "__main__":
                     # checkpoint not found error
 
 
-    test_create_ms_env() # NOT OK
+    # test_create_ms_env() # NOT OK
     # eval('/home/happycosmonaut/ray_results/DQN_2023-11-16_21-27-38/DQN_multy_symbol_env_4bf15_00000_0_2023-11-16_21-27-40/checkpoint_000002')
     # test_get_train_test_feed() # OK
     # test_observation_shape() # FIXME: some problems with this test
     # # test_obs_space_of() # OK
     # test_multy_symbols() # OK
     # test_multy_symbol_simple_trade_close_manually() # OK
-    # test_multy_symbol_simple_use_force_sell() # OK
+    test_multy_symbol_simple_use_force_sell() # OK
     # test_end_episodes() # OK
     # test_comission() # NOT OK
     # test_spread() # OK

@@ -7,6 +7,7 @@
 dist
 build
 tags
+todo.md
 
 .python-version
 # test-related
