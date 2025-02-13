@@ -36,6 +36,10 @@ FLAT = 'FLAT'
 pd.set_option('mode.chained_assignment', None)
 
 
+def close(obs):
+    return obs[0]
+
+
 def get_env(env):
     return env.env.env.env
 
