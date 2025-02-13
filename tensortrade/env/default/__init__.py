@@ -43,6 +43,11 @@ def close(obs):
 def get_env(env):
     return env.env.env.env
 
+
+def get_feed(env):
+    return get_env(env).config['data']['feed']
+
+
 def get_obs_header(env):
     env = get_env(env)
     one_point_header = list(env.config['data']['feed'].columns)

@@ -231,37 +231,6 @@ def get_dataset(config):
             quotes[t] = pd.concat([s['quotes'][t] for s in config['data']['symbols']])
         return config['data']['feed']
 
-def make_folds(config):
-    # NFOLDCV_MODE_PROPORTIONAL
-    for i, s in enumerate(config["data"]["symbols"], 0):
-        feed_length = len(s["feed"])
-        fold_length = int(feed_length / config['data']["num_folds"])
-        _,raw_folds = default.split(feed_length, config['data']["num_folds"])
-        # ic(f'AFTER raw_folds {raw_folds}')
-        # print(f'AFTER raw_folds {raw_folds}')
-        all_episodes=[]
-        folds=[]
-        last_episode_end_index=0
-        for start, end in raw_folds:
-            num_of_episodes = math.ceil((end - start) / config['data']["max_episode_length"])
-            _,episodes = default.split(end - start, num_of_episodes)
-            # print(f'   {episodes=}')
-            episodes = [[t + last_episode_end_index for t in e] for e in episodes]
-            # print(f'   after {episodes=}')
-            last_episode_end_index = episodes[-1][-1] #- last_episode_end_index
-            a = len(all_episodes)
-            b = a + len(episodes)
-            all_episodes = [*all_episodes, *episodes]
-            folds.append([a,b])
-            for e in episodes:
-                if e[1] - e[0] < config['data'].get("min_episode_length",1):
-                    # print('end - start ', end - start, ' max_episode_length ', config['data']["max_episode_length"], ' min_episode_length ', config['data']["min_episode_length"])
-                    warnings.warn("some episode length is less then min_episode_length  ¯\_(ツ)_/¯. Try to fix your config", Warning)
-
-        s["folds"] = folds
-        s["episodes"] = all_episodes
-
-    # return config
 
 # class EnvConfig(_Config):
 class EnvConfig:
