@@ -15,3 +15,12 @@ def test_get_agent():
                          'upper': 11},
                         {'name': 'timeframes', 'value': timeframes}]}
     a = get_agent(conf)
+
+
+def test_get_distribution():
+    conf = {'name':'test_distr','distribution':'quniform', 'lower': 5, 'upper': 12, 'q':1}
+    d = get_distribution(conf)
+    print('get distribution')
+
+    for f in range(21):
+        print('sample: ', d.sample())
