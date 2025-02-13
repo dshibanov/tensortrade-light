@@ -1,5 +1,4 @@
 from .agent import Agent
-from .dummy_agent import DummyAgent
 from .sma_cross import SMACross
 from .replay_memory import ReplayMemory
 
