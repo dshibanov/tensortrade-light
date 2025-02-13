@@ -15,24 +15,136 @@ from tensortrade.feed import DataFeed, Stream, NameSpace
 from tensortrade.oms.services.execution.simulated import execute_order
 
 import numpy as np
-# import ray
-# from ray import tune
-# from ray.tune.registry import register_env
 from tensortrade.env.default import *
 import copy
-# from ray.rllib.algorithms.dqn.dqn import DQNConfig
-# from ray import air, tune
-# from ray.air.config import RunConfig, ScalingConfig, CheckpointConfig
-# from ray.rllib.utils import check_env
-# from ray.rllib.algorithms.algorithm import Algorithm
 from icecream import ic
-# from plot import plot_history, set_gruvbox
-# from tensortrade.utils.plot import plot_history, set_gruvbox
+import datamart.datamart as dm
+import quantutils.parameters as parameters
 
-# from ray.tune.schedulers import PopulationBasedTraining
-# from evaluators import *
+from tensortrade.env.config import get_agent
+from quantutils.parameters import get_param
 
-# register_env("multy_symbol_env", create_multy_symbol_env)
+def test_get_obs_header():
+
+    # so start from this
+    timeframes = ['15m', '1h']
+    config = {'env':{
+                    'data': {
+                              'timeframes': timeframes,
+                              'from': '2020-1-1',
+                              'to': '2020-1-2',
+                              'symbols': [
+                                            {
+                                             'name': 'AST0',
+                                             'from': '2020-1-1',
+                                             'to': '2020-1-2',
+                                             'synthetic': True,
+                                             'ohlcv': True,
+                                             'code': 0
+                                            },
+
+                                           {
+                                            'name': 'AST1',
+                                            'from': '2020-1-1',
+                                            'to': '2020-1-2',
+                                            'synthetic': True,
+                                            'ohlcv': True,
+                                            'num_of_samples': 1050,
+                                            'code': 1
+                                           }],
+                              # 'num_folds': 3,
+                              'max_episode_length': 40,
+                              'min_episode_length': 15
+                            },
+
+                    'action_scheme': {'name': 'tensortrade.env.default.actions.MultySymbolBSH',
+                                      'params': []},
+                    'reward_scheme': {'name': 'tensortrade.env.default.rewards.SimpleProfit',
+                                      'params': [{'name': 'window_size', 'value': 2}]},
+
+                    # in this section general params
+                    'params':[{'name': "feed_calc_mode", 'value': fd.FEED_MODE_NORMAL},
+                            {'name': "make_folds", 'value': False},
+                            {'name': "multy_symbol_env", 'value': True},
+                            {'name': "use_force_sell", 'value': True},
+                            {'name': "add_features_to_row", 'value': True},
+                            {'name': "max_allowed_loss", 'value': 100},
+                            {'name': "test", 'value': False},
+                            {'name': "reward_window_size", 'value': 7},
+                            # {'name': "window_size", 'value': 1},
+                            {'name': "window_size", 'value': fd.TICKS_PER_BAR},
+                            # {'name': "window_size", 'value': 2},
+                            {'name': "num_service_cols", 'value': 2},
+                            # {'name': "load_feed_from", 'value': 'feed.csv'},
+                              {'name': "load_feed_from", 'value': ''},
+
+                            ## save_feed, save calculated feed 
+                            ## WARNING: this works if num of your agent is 1,
+                            ## Otherwise it will work not correctly
+                            {'name': "save_feed", 'value': False}]
+                },
+
+              # 'agents': [{'name': 'agents.sma_cross_rl.SMACross_TwoScreens',
+              'agents': [{'name': 'tensortrade.agents.sma_cross.SMACross',
+                         'params': [{'name': 'n_actions', 'value': 2},
+                                    {'name': 'observation_space_shape', 'value': (10,1)},
+                                    {'name': 'fast_ma', 'value': 3, 'optimize': True, 'lower': 2,
+                                     'upper': 5},
+                                    {'name': 'slow_ma', 'value': 5, 'optimize': True, 'lower': 5,
+                                     'upper': 11},
+                                    {'name': 'timeframes', 'value': timeframes}]},
+                         # {'name': 'agents.sma_cross_rl.SMACross_TwoScreens',
+                         {'name': 'tensortrade.agents.sma_cross.SMACross',
+                          'params': [{'name': 'n_actions', 'value': 2},
+                                     {'name': 'observation_space_shape', 'value': (10, 1)},
+                                     {'name': 'fast_ma', 'value': 2},
+                                     {'name': 'slow_ma', 'value': 11},
+                                     {'name': 'timeframes', 'value': timeframes}]}
+                         ],
+               'datamart': dm.DataMart(),
+               'params': [{'name': 'add_features_to_row', 'value': True},
+                            {'name':'check_track', 'value':True}],
+              "evaluate": simulate,
+              "algo": {},
+              "max_episode_length": 15, # smaller is ok
+              "min_episode_length": 5, # bigger is ok, smaller is not
+              "make_folds":True,
+              "num_folds": 5,
+              "cv_mode": 'proportional',
+              "test_fold_index": 3,
+              "reward_window_size": 1,
+              "window_size": 2,
+              "max_allowed_loss": 0.9,
+              "use_force_sell": True,
+              "multy_symbol_env": True,
+              "test": False
+    }
+
+
+    fd.prepare(config)
+    parameters.inject_params(config.get('optimize_params',{}), config)
+    agent = get_agent(config['agents'][config.get('agent_num', 0)])
+    config['env']['data']['features'] = agent.get_features()
+    env_conf = fd.EnvConfig(config['env'])
+    env = env_conf.build()
+    obs_header = get_obs_header(env)
+    print(obs_header)
+
+    real_env = get_env(env)
+    header = list(real_env.config['data']['feed'].columns)
+    # header = list(get_env(env).config['symbols'][0]['feed'].columns)
+    if 'symbol' in header:
+        header.remove('symbol')
+
+
+    if get_param(real_env.config['params'], 'multy_symbol_env')['value'] == True:
+        header.remove('end_of_episode')
+        header.remove('symbol_code')
+
+    window_size = get_param(real_env.config['params'], 'window_size')['value']
+    assert len(obs_header) == len(header)*window_size
+    print(len(header))
+
 
 @pytest.fixture
 def portfolio():
@@ -1059,10 +1171,11 @@ if __name__ == "__main__":
     # # test_obs_space_of() # OK
     # test_multy_symbols() # OK
     # test_multy_symbol_simple_trade_close_manually() # OK
-    test_multy_symbol_simple_use_force_sell() # OK
+    # test_multy_symbol_simple_use_force_sell() # OK
     # test_end_episodes() # OK
     # test_comission() # NOT OK
     # test_spread() # OK
     # test_make_synthetic_symbol() # OK
     # test_eval_fold() # OK but should be removed
     # test_get_cv_score() # OK but should be removed
+    test_get_obs_header()

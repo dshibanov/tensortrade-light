@@ -20,8 +20,7 @@ from tensortrade.oms.exchanges import Exchange, ExchangeOptions
 from tensortrade.oms.services.execution.simulated import execute_order
 # from ray.tune.tune import _Config
 from pprint import pprint
-import tensortrade.env.default as default
-from tensortrade.env.default import split
+# from tensortrade.env.default import split
 import math
 import copy
 
@@ -237,7 +236,7 @@ def make_folds(config):
     for i, s in enumerate(config["data"]["symbols"], 0):
         feed_length = len(s["feed"])
         fold_length = int(feed_length / config['data']["num_folds"])
-        _,raw_folds = split(feed_length, config['data']["num_folds"])
+        _,raw_folds = default.split(feed_length, config['data']["num_folds"])
         # ic(f'AFTER raw_folds {raw_folds}')
         # print(f'AFTER raw_folds {raw_folds}')
         all_episodes=[]
@@ -245,7 +244,7 @@ def make_folds(config):
         last_episode_end_index=0
         for start, end in raw_folds:
             num_of_episodes = math.ceil((end - start) / config['data']["max_episode_length"])
-            _,episodes = split(end - start, num_of_episodes)
+            _,episodes = default.split(end - start, num_of_episodes)
             # print(f'   {episodes=}')
             episodes = [[t + last_episode_end_index for t in e] for e in episodes]
             # print(f'   after {episodes=}')
